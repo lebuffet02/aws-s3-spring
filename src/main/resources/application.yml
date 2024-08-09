@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: aws-s3
+
+aws:
+  region: us-east-1
+  bucketName: bucket
+  key: k
+  secret: k
