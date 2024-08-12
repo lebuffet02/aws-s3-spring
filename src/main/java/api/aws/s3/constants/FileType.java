@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 @Getter
-@AllArgsConstructor(access = lombok.AccessLevel.PACKAGE)
+@AllArgsConstructor
 public enum FileType {
 
     JPG("jpg", MediaType.IMAGE_JPEG),

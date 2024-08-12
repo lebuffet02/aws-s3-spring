@@ -19,7 +19,12 @@ public class S3Controller {
     @Autowired
     S3Service service;
 
-    @PostMapping("/upload")
+    @GetMapping
+    public ResponseEntity<?> listFilesController() {
+        return ResponseEntity.ok(service.getFilesService());
+    }
+
+    @PostMapping
     public ResponseEntity<?> uploadController(@RequestParam("file") List<MultipartFile> files) {
         return service.uploadService(files);
     }

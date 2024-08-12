@@ -3,17 +3,19 @@ package api.aws.s3.service;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -29,6 +31,25 @@ public class S3Service {
 
     private static final String REGEX_EXTENSAO = ".*\\.(jpeg|jpg|png|gif|txt|pdf)$";
 
+    public List<?> getFilesService() {
+        try {
+            List<String> files = new ArrayList<>();
+            if (!CollectionUtils.isEmpty(s3Client.listObjects(this.bucket).getObjectSummaries())) {
+                s3Client.listObjects(this.bucket).getObjectSummaries()
+                        .stream()
+                        .map(S3ObjectSummary::getKey)
+                        .filter(key -> !key.endsWith("/"))
+                        .forEach(files::add);
+            }
+            log.info("Arquivos presentes no bucket: {}  ", this.bucket);
+            return files;
+        } catch (Exception e) {
+            log.info("Falha ao localizar arquivos no bucket: {}  ", this.bucket);
+            throw new AmazonServiceException(e.getMessage());
+        }
+    }
+    
+    
     public ResponseEntity<?> uploadService(List<MultipartFile> files) {
         try {
             files.forEach(f -> {
@@ -48,8 +69,15 @@ public class S3Service {
         }
     }
 
-
-
+    public ByteArrayOutputStream downloadService(String nameFile) {
+        try {
+            return getOutPut(s3Client.getObject(this.bucket, nameFile).getObjectContent(), nameFile);
+        } catch (Exception e) {
+            log.info("Falha ao baixar arquivo do bucket: {} , {} ", this.bucket, e.getMessage());
+            return null;
+        }
+    }
+    
     public ResponseEntity<?> deleteService(String nameFile) {
         try {
             if (!Pattern.compile(REGEX_EXTENSAO).matcher(nameFile).find()) {
@@ -63,23 +91,7 @@ public class S3Service {
             return ResponseEntity.badRequest().body("Falha ao deletar arquivo ".concat(nameFile));
         }
     }
-
-    private ObjectMetadata getObjectMetadata(MultipartFile file) {
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(file.getSize());
-        metadata.setContentType(file.getContentType());
-        return metadata;
-    }
-
-    public ByteArrayOutputStream downloadService(String nameFile) {
-        try {
-            return getOutPut(s3Client.getObject(this.bucket, nameFile).getObjectContent(), nameFile);
-        } catch (Exception e) {
-            log.info("Falha ao baixar arquivo do bucket: {} , {} ", this.bucket, e.getMessage());
-            return null;
-        }
-    }
-
+    
     private ByteArrayOutputStream getOutPut(InputStream input, String nameFile) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -93,5 +105,12 @@ public class S3Service {
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private ObjectMetadata getObjectMetadata(MultipartFile file) {
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(file.getSize());
+        metadata.setContentType(file.getContentType());
+        return metadata;
     }
 }
